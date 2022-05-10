@@ -1,0 +1,44 @@
+# This is an example PKGBUILD file. Use this as a start to creating your own,
+# and remove these comments. For more information, see 'man PKGBUILD'.
+# NOTE: Please fill out the license field for your package! If it is unknown,
+# then please put 'unknown'.
+
+# Maintainer: Diego Augusto <diego.augusto@protonmail.co,>
+pkgname=sway-session-wrapper
+pkgver=1.2.0
+pkgrel=1
+epoch=
+pkgdesc="A wrapper around sway that sources a script before starting it"
+arch=('any')
+url=""
+license=()
+groups=()
+depends=(sway)
+makedepends=()
+checkdepends=()
+optdepends=()
+provides=()
+conflicts=()
+replaces=()
+backup=()
+options=()
+install=
+changelog=
+source=(sway-session-wrapper sway-session-wrapper.desktop)
+noextract=() #("${source[@]%%::*}")
+validpgpkeys=()
+
+build() {
+    chmod +x sway-session-wrapper
+}
+
+package() {
+    mkdir -p $pkgdir/usr/share/wayland-sessions/
+    mkdir -p $pkgdir/usr/bin
+    cp sway-session-wrapper $pkgdir/usr/bin
+    cp sway-session-wrapper.desktop $pkgdir/usr/share/wayland-sessions/
+}
+sha256sums=('07ed123f544a61323ac2d2f8eeb0ead51436d179602b025fdac0dea9b8f414fa'
+            'dc3afaf00025913292f189fe13479de2c7ce462b0968b5ad32a884ef0fa24a4d')
+sha256sums=('dd308c7707c2711f84499a72cc6740dc94fb537ce9d309858c015bcdadb1897c'
+            'dc3afaf00025913292f189fe13479de2c7ce462b0968b5ad32a884ef0fa24a4d')

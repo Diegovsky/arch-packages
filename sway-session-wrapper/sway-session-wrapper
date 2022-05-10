@@ -1,0 +1,10 @@
+#!/usr/bin/env bash
+user_script="$HOME/.wayinitrc"
+
+if [[ -f $user_script ]]; then
+    source $user_script
+fi
+
+unset user_script
+
+exec /usr/bin/sway
