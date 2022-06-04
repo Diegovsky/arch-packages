@@ -1,0 +1,41 @@
+# Maintainer: Diego Augusto <diego.augusto@protonmail.co,>
+pkgname=wlr-utils
+pkgver=1.5.0
+pkgrel=1
+epoch=
+pkgdesc="Utilities for wlroots-based compositors."
+arch=('any')
+url=""
+license=(MIT)
+groups=()
+depends=(wlroots grim slurp wl-clipboard sqlite)
+makedepends=()
+checkdepends=()
+optdepends=('libnotify: Support for sending status notifications')
+provides=()
+conflicts=()
+replaces=()
+backup=()
+options=()
+changelog=
+source=(wlr-screenshot wlr-clipboard-history)
+noextract=()
+validpgpkeys=()
+sha256sums=('545223ac50dbada1a06eb2aea43d1a1091adcde3de3b88e66ad245f47a312117'
+            'd0d0f65530916da3b3081b67bd68a3d5fbd8ca2d728f0aadb75f91be8a2cdb24')
+
+
+build() {
+    _bindir="$pkgdir/usr/bin/"
+    for file in ${source[@]}; do
+        chmod +x "$file"
+    done
+}
+
+package() {
+    _bindir="$pkgdir/usr/bin/"
+    mkdir -p "$_bindir"
+    for file in ${source[@]}; do
+        cp "$file" "$_bindir"
+    done
+}

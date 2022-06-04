@@ -1,0 +1,101 @@
+#!/usr/bin/env sh
+# MIT License
+# 
+# Copyright (c) 2017 Josip Janžić
+# 
+# Permission is hereby granted, free of charge, to any person obtaining a copy
+# of this software and associated documentation files (the "Software"), to deal
+# in the Software without restriction, including without limitation the rights
+# to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+# copies of the Software, and to permit persons to whom the Software is
+# furnished to do so, subject to the following conditions:
+# 
+# The above copyright notice and this permission notice shall be included in all
+# copies or substantial portions of the Software.
+# 
+# THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+# IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+# FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+# AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+# LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+# OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+# SOFTWARE.
+#
+# Originally from https://github.com/janza/wl-clipboard-history
+# Modified by Diego Augusto Silva Castro
+set -euo pipefail
+
+clipboard_folder="${XDG_STATE_HOME:-$HOME/.local/state}"
+clipboard_file="$clipboard_folder/wlr-clipboard-history.sqlite"
+
+# You never know, always be prepared
+if [[ -d $clipboard_folder ]]; then
+    mkdir -p $clipboard_folder
+fi
+
+query () {
+    echo "$1" | sqlite3 -separator "," "$clipboard_file"
+}
+
+create_db() {
+    query "
+    CREATE TABLE c (id INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT, contents text);
+    CREATE TRIGGER rotate_rows AFTER INSERT ON c
+   BEGIN
+     DELETE FROM c WHERE id <= (SELECT id FROM c ORDER BY id DESC LIMIT 1000, 1);
+   END;"
+
+}
+
+if [ ! -f "$clipboard_file" ]; then
+    create_db
+fi
+
+
+listen () {
+    wl-paste -w $0
+}
+
+helpusage () {
+    echo "Usage: $0 OPTION [ARG]"
+    echo ""
+    echo "Without any arguments the command will insert contents of stdin in the database"
+    echo "   -t           Track clipboard changes"
+    echo "   -l [NUMBER]  Print last NUMBER of clipboard entries (defaults to 10 entries)"
+    echo "   -p [INDEX]   Print clipboard entry at INDEX (defaults to the last entry)"
+    echo "   -d [INDEX]   Purge all clipboard history"
+}
+
+if [ $# = 0 ]; then
+   contents="$(< /dev/stdin sed "s/'/''/g")"
+   if [ "$contents" = "" ]; then
+      helpusage
+      exit 1
+   else
+      query "INSERT INTO c (contents) VALUES ('${contents}');"
+      exit 0
+   fi
+fi
+
+
+case "$1" in
+    -t)
+        listen
+        ;;
+    -d)
+        query "DROP TABLE IF EXISTS c" &&
+        create_db &&
+        echo "Deleted all entries successfully."
+        ;;
+    -l)
+        query "SELECT MAX(id), REPLACE(contents, '
+        ', '') FROM c GROUP BY contents ORDER BY id DESC LIMIT ${2:-10}"
+        ;;
+    -p)
+       query "SELECT contents FROM c WHERE id = ${2:-"(SELECT id FROM c ORDER BY id DESC)"}"
+       ;;
+    *)
+        helpusage
+        exit 1
+        ;;
+esac

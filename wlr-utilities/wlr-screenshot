@@ -1,0 +1,95 @@
+#!/usr/bin/env bash
+
+help-page() {
+    local exename=`basename $0`
+    cat<<EOF
+Usage: $exename [options] [target]
+
+If no target is given, select is assumed.
+
+OPTIONS:
+  -h, --help Show this help page
+
+TARGETS:
+  window            (sway only)
+  output
+  current-output    (sway only)
+  current-window    (sway only)
+  select
+EOF
+}
+
+which notify-send 2>&1 > /dev/null
+has_notify=$?
+
+ensure_sway() {
+    if [[ -z "$SWAYSOCK" ]]
+    then
+        echo "This target is only currently supported by sway."
+        exit -1
+    fi
+}
+
+notify() {
+    local failed=$1
+    local target=$2
+    if [[ $has_notify -eq 0 ]]; then
+        if [[ $failed -eq 0 ]]; then
+            notify-send 'Screenshot' "Saved screenshot of $target to clipboard"
+        else
+            notify-send 'Screenshot' "Failed to take screenshot of $target"
+        fi
+    fi
+}
+
+screenshot() {
+    last_cmd_failed=$?
+    grim "$@" - | wl-copy
+    notify $last_cmd_failed "${FUNCNAME[1]}"
+}
+
+format_window_coords() {
+    jq -r '"\(.x),\(.y) \(.width)x\(.height)"'
+}
+
+window() {
+    ensure_sway
+    local region=$(swaymsg -t get_tree | jq -r '.. | select(.pid? and .visible?) | .rect' | format_window_coords | slurp -p)
+    screenshot -g "$region"
+}
+
+output() {
+    local output_name=$(slurp -dpf "%o")
+    screenshot -o $output_name
+}
+
+current-output() {
+    local output_name=$(swaymsg -t get_outputs | jq 'select(.[].focused == true)' | jq '.[0].name' -r)
+    screenshot -o $output_name
+}
+
+current-window() {
+    ensure_sway
+    local region=$(swaymsg -t get_tree | jq -r '.. | select(.focused?) | .rect' | format_window_coords)
+    screenshot -g "$region"
+}
+
+select-region() {
+    screenshot -g "$(slurp)"
+}
+
+case ${1:-select} in
+    window|current-window|output|current-output)
+        `$1`
+        ;;
+    select|"")
+        select-region
+        ;;
+    -h|--help)
+        help-page
+        ;;
+    *)
+        echo -n "Unknown command '$1'"
+        exit -1
+        ;;
+esac
