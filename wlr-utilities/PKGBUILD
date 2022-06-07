@@ -1,6 +1,6 @@
 # Maintainer: Diego Augusto <diego.augusto@protonmail.co,>
 pkgname=wlr-utils
-pkgver=1.5.0
+pkgver=1.7.0
 pkgrel=1
 epoch=
 pkgdesc="Utilities for wlroots-based compositors."
@@ -8,7 +8,7 @@ arch=('any')
 url=""
 license=(MIT)
 groups=()
-depends=(wlroots grim slurp wl-clipboard sqlite)
+depends=(wlroots grim slurp wl-clipboard sqlite sed)
 makedepends=()
 checkdepends=()
 optdepends=('libnotify: Support for sending status notifications')
@@ -22,7 +22,7 @@ source=(wlr-screenshot wlr-clipboard-history)
 noextract=()
 validpgpkeys=()
 sha256sums=('545223ac50dbada1a06eb2aea43d1a1091adcde3de3b88e66ad245f47a312117'
-            'd0d0f65530916da3b3081b67bd68a3d5fbd8ca2d728f0aadb75f91be8a2cdb24')
+            '8f4d9c23a43dc2dc90c6b5819d243a3626acc41fa97510449522b6164439f124')
 
 
 build() {

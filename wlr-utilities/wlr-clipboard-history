@@ -22,19 +22,22 @@
 # SOFTWARE.
 #
 # Originally from https://github.com/janza/wl-clipboard-history
-# Modified by Diego Augusto Silva Castro
+# Modified by Diego Augusto Silva Castro (diego.augusto@protonmail.com)
 set -euo pipefail
 
 clipboard_folder="${XDG_STATE_HOME:-$HOME/.local/state}"
 clipboard_file="$clipboard_folder/wlr-clipboard-history.sqlite"
 
 # You never know, always be prepared
-if [[ -d $clipboard_folder ]]; then
+if [[ ! -d $clipboard_folder ]]; then
     mkdir -p $clipboard_folder
 fi
 
 query () {
-    echo "$1" | sqlite3 -separator "," "$clipboard_file"
+    if [[ -n "${DBG:-}" ]]; then
+        echo 'Query: ' $1 1>&2
+    fi
+    echo "$1" | sqlite3 -separator ", " "$clipboard_file"
 }
 
 create_db() {
@@ -61,13 +64,16 @@ helpusage () {
     echo ""
     echo "Without any arguments the command will insert contents of stdin in the database"
     echo "   -t           Track clipboard changes"
-    echo "   -l [NUMBER]  Print last NUMBER of clipboard entries (defaults to 10 entries)"
+    echo "   -l [NUMBER]  Print last NUMBER of clipboard entries (defaults to 10 entries)."
+    echo "                It also escapes special characters for better viewing in the"
+    echo "                terminal and limits it's length to \$QUERY_LINE_SIZE (or the"
+    echo "                terminal's width)"
     echo "   -p [INDEX]   Print clipboard entry at INDEX (defaults to the last entry)"
-    echo "   -d [INDEX]   Purge all clipboard history"
+    echo "   -d           Purge all clipboard history"
 }
 
 if [ $# = 0 ]; then
-   contents="$(< /dev/stdin sed "s/'/''/g")"
+   contents="$(< /dev/stdin sed "s/'/''/g" | sed)"
    if [ "$contents" = "" ]; then
       helpusage
       exit 1
@@ -83,13 +89,37 @@ case "$1" in
         listen
         ;;
     -d)
-        query "DROP TABLE IF EXISTS c" &&
-        create_db &&
-        echo "Deleted all entries successfully."
+        echo "Are you sure you want to delete all entries? [Y/n]"
+        read answer
+        if [[ $answer == 'y' || $answer == 'Y' ]]; then
+            query "DROP TABLE IF EXISTS c" &&
+                create_db &&
+                echo "Deleted all entries successfully."
+        else
+            echo 'Entries kept'
+        fi
         ;;
     -l)
-        query "SELECT MAX(id), REPLACE(contents, '
-        ', '') FROM c GROUP BY contents ORDER BY id DESC LIMIT ${2:-10}"
+        QUERY_LINE_SIZE=${QUERY_LINE_SIZE:-`stty size | cut -d' ' -f 2`-3}
+        escape_special() {
+            replace() {
+                echo "REPLACE(`cat -`, char($1), '$2')"
+            }
+            newline() {
+                replace 10 '\n'
+            }
+            feed() {
+                replace 13 '\r'
+            }
+            tab() {
+                replace 11 '\t'
+            }
+            echo $1 | newline | feed | tab
+        }
+        filter_len() {
+            echo "IIF(LENGTH($1) > $MAX_QUERY_SIZE, SUBSTR($1, 0, $MAX_QUERY_SIZE-3) || '...', $1)"
+        }
+        query "SELECT MAX(id), `escape_special "$(filter_len contents)"` FROM c GROUP BY contents ORDER BY id DESC LIMIT ${2:-10}"
         ;;
     -p)
        query "SELECT contents FROM c WHERE id = ${2:-"(SELECT id FROM c ORDER BY id DESC)"}"
